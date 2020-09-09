@@ -1,54 +1,95 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { AppThunk, RootState } from "../../app/store";
+import axios from "axios";
 
-interface CounterState {
-  value: number;
+export interface GitUserDetails {
+  login?: string;
+  name?: string;
+  id?: string;
+  avatar_url?: string;
+  url?: string;
+  blog?: string;
+  location?: string;
+  bio?: string;
+  public_repos?: number;
+  public_gists?: number;
+  followers?: number;
+  following?: number;
+  message?: string;
+  documentation_url?: string;
 }
 
-const initialState: CounterState = {
-  value: 0,
+interface GitCompareState {
+  gitUsers: GitUserDetails[];
+  status: string | null;
+  error: string | null;
+}
+
+const initialState: GitCompareState = {
+  gitUsers: [],
+  error: null,
+  status: null,
 };
 
 export const gitCompareSlice = createSlice({
-  name: "counter",
+  name: "gitCompare",
   initialState,
   reducers: {
-    increment: (state) => {
-      // Redux Toolkit allows us to write "mutating" logic in reducers. It
-      // doesn't actually mutate the state because it uses the Immer library,
-      // which detects changes to a "draft state" and produces a brand new
-      // immutable state based off those changes
-      state.value += 1;
+    getUserStarted: (gitUserState) => {
+      gitUserState.error = null;
+      gitUserState.status = "fetching";
     },
-    decrement: (state) => {
-      state.value -= 1;
+    getUserCompleted: (gitUserState) => {
+      gitUserState.status = "fetched";
     },
-    // Use the PayloadAction type to declare the contents of `action.payload`
-    incrementByAmount: (state, action: PayloadAction<number>) => {
-      state.value += action.payload;
+    setGitUser: (gitUserState, action: PayloadAction<GitUserDetails>) => {
+      gitUserState.gitUsers = [...gitUserState.gitUsers!, action.payload];
+    },
+    setError: (gitUserState, action: PayloadAction<string>) => {
+      gitUserState.error = action.payload;
     },
   },
 });
 
-export const {
-  increment,
-  decrement,
-  incrementByAmount,
+const {
+  setGitUser,
+  setError,
+  getUserStarted,
+  getUserCompleted,
 } = gitCompareSlice.actions;
 
-// The function below is called a thunk and allows us to perform async logic. It
-// can be dispatched like a regular action: `dispatch(incrementAsync(10))`. This
-// will call the thunk with the `dispatch` function as the first argument. Async
-// code can then be executed and other actions can be dispatched
-export const incrementAsync = (amount: number): AppThunk => (dispatch) => {
-  setTimeout(() => {
-    dispatch(incrementByAmount(amount));
-  }, 1000);
+export const fetchGitDetails = (username: string): AppThunk => async (
+  dispatch,
+  getState
+) => {
+  const allUsers = getState().gitCompare.gitUsers;
+  const userFound = allUsers.findIndex(
+    (usr) => usr.login?.toLowerCase() === username.toLowerCase()
+  );
+  dispatch(getUserStarted());
+  console.log(userFound);
+  if (userFound === -1) {
+    try {
+      const { data } = await axios.get<GitUserDetails>(
+        "https://api.github.com/users/" + username
+      );
+      dispatch(setGitUser(data));
+      dispatch(getUserCompleted());
+    } catch (err) {
+      dispatch(setError(username + " git user not found"));
+      dispatch(getUserCompleted());
+    }
+  } else {
+    dispatch(setError("User already compared"));
+    dispatch(getUserCompleted());
+  }
 };
 
 // The function below is called a selector and allows us to select a value from
 // the state. Selectors can also be defined inline where they're used instead of
 // in the slice file. For example: `useSelector((state: RootState) => state.counter.value)`
-export const selectCount = (state: RootState) => state.counter.value;
+export const selectGitUser = (state: RootState) => state.gitCompare.gitUsers;
+export const selectStatus = (state: RootState) => state.gitCompare.status;
+export const selectError = (state: RootState) => state.gitCompare.error;
 
 export default gitCompareSlice.reducer;
