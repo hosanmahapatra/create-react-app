@@ -123,7 +123,7 @@ export const GitCompare: FC = () => {
         </Row>
       </Layout.Content>
       <Layout.Footer style={{ textAlign: "center" }}>
-        Design ©2020 Created by Hosan Mohapatra
+        Design ©2020 Created by Hosan Mahapatra
       </Layout.Footer>
     </Layout>
   );
